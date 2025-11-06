@@ -1,0 +1,69 @@
+start:
+  class: uav.autonomous_modes.LaunchAndScan
+  params:
+    takeoff_alt_m: 3.0
+    spin_max_deg: 360.0
+    spin_rate_dps: 45.0
+    min_hoops_to_stop: 3
+  transitions:
+    complete: plan
+
+# Explicitly request vision nodes to start with this mission. This
+# ensures the launcher will start the camera and the MockVisionNode so
+# autonomous modes can rely on the CameraNode/vision pipeline.
+vision_nodes:
+  - MockVisionNode
+
+plan:
+  class: uav.autonomous_modes.PlanRoute
+  params:
+    pre_approach_dist: 3.5
+    max_targets: 4
+  transitions:
+    complete: goto_preapproach
+
+goto_preapproach:
+  class: uav.autonomous_modes.GoToPreApproach
+  params:
+    cruise_speed_mps: 2.0
+    waypoint_tol_m: 0.8
+  transitions:
+    complete: face_hoop
+
+face_hoop:
+  class: uav.mock_modes.FaceHoop
+  params:
+    yaw_tol_deg: 6.0
+    yaw_rate_dps: 30.0
+  transitions:
+    complete: center_in_image
+
+center_in_image:
+  class: uav.autonomous_modes.CenterInImage
+  params:
+    kx: 0.003
+    ky: 0.003
+    kz: 0.4
+    hoop_center_tol_px: 8
+    hoop_radius_target_px: 80
+  transitions:
+    complete: commit_traverse
+
+commit_traverse:
+  class: uav.autonomous_modes.CommitTraverse
+  params:
+    traverse_dist: 4.0
+    traverse_speed: 2.0
+  transitions:
+    complete: goto_preapproach
+
+# fallback path to return home and land (mission runner can 'jump' here when route empty)
+return_home:
+  class: uav.autonomous_modes.ReturnHome
+  params:
+    tol: 1.0
+  transitions:
+    complete: land
+
+land:
+  class: uav.mock_modes.Land
